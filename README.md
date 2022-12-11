@@ -4,3 +4,6 @@
 
 
 ![Sample Image](https://github.com/ajeeth-b/D3-Map-Pie/blob/master/sample.png)
+
+
+- Click [here](https://ajeeth-b.github.io/D3-Map-Pie/) to view sample working chart.
