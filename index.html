@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+
+
+<head>
+    <!-- Load d3.js -->
+    <script src="https://d3js.org/d3.v4.js"></script>
+</head>
+
+
+<body>
+
+    <div style="width: 95vw; height: 90vh;">
+        <div id="svg_div" style="width: 100%; height: 100%;"> </div>
+    </div>
+
+</body>
+
+<style>
+    .resizable-content {
+        min-height: 30px;
+        min-width: 30px;
+        resize: both;
+        overflow: auto;
+        max-height: fit-content;
+        max-width: fit-content;
+    }
+
+    div.tooltip-donut {
+        position: absolute;
+        text-align: center;
+        padding: .5rem;
+        background: #FFFFFF;
+        color: #313639;
+        border: 1px solid #313639;
+        border-radius: 8px;
+        pointer-events: none;
+        font-size: 1rem;
+    }
+
+    .legend-div {
+        height: 100%;
+        width: 100%
+    }
+</style>
+<script>
+
+    var pie_datas = [
+        {
+            country: "India",
+            lat: 22.239999,
+            long: 78.990985,
+            name: "India",
+            data: {
+                "closed": 10,
+                "wip": 5,
+                "yts": 1,
+            }
+        },
+        {
+            country: "Africaaa aaaaaa aaaaaa",
+            lat: 6.239999,
+            long: 20.990985,
+            name: "Africaaa",
+            data: {
+                "closed": 50,
+                "wip": 10,
+                "yts": 2,
+            }
+        },
+        {
+            country: "Brazil",
+            lat: -25.589673910235465,
+            long: -49.39983566967069,
+            name: "Brazil",
+            data: {
+                "closed": 20,
+                "wip": 1,
+                "yts": 1,
+            }
+        },
+        {
+            country: "USA",
+            lat: 42.343787,
+            long: -97.469474,
+            name: "USA",
+            data: {
+                "closed": 20,
+                "wip": 7,
+                "yts": 2,
+            }
+        },
+    ]
+
+    var pie_colors = {
+        "closed": "#2EE6A4",
+        "wip": "#FEB019",
+        "yts": "#EA3546",
+    }
+
+
+    function draw_map_pie() {
+
+        let svg_div = d3.select("#svg_div")
+
+        let tooltip_div = d3.select("body").append("div")
+            .attr("class", "tooltip-donut")
+            .style("opacity", 0);
+
+        let svg_div_width = svg_div.node().getBoundingClientRect().width;
+        let svg_div_height = svg_div.node().getBoundingClientRect().height;
+        let svg = svg_div.append("svg")
+        svg
+            .attr("width", svg_div_width)
+            .attr("height", svg_div_height);
+
+
+        let width = +svg.attr("width");
+        let height = +svg.attr("height");
+        if (height < width) {
+            width = height * 1.2;
+        } else {
+            height = width / 1.2;
+        }
+
+        let pie_radius = height / 20;
+        if (pie_radius < 15) {
+            pie_radius = 15;
+        }
+
+        map_svg = svg.append("g")
+        pie_svg = svg.append("g")
+
+        // Map and projection
+        let projection = d3.geoMercator()
+            .scale(width / 5)
+            .translate([svg_div_width / 2, svg_div_height / 1.4])
+
+        // Load external data and boot
+        d3.json("https://raw.githubusercontent.com/holtzy/D3-graph-gallery/master/DATA/world.geojson", function (data) {
+
+            // Draw the map
+            map_svg.selectAll("path")
+                .data(data.features)
+                // .data(data.features.filter(d => d.id !== "ATA"))
+                .enter().append("path")
+                .attr("fill", "#E1E3E7")
+                .attr("d", d3.geoPath()
+                    .projection(projection)
+                )
+
+            pie_datas.forEach((pie_data) => {
+
+                let pie_width = 10, pie_height = 10;
+                let coords = projection([pie_data.long, pie_data.lat]);
+                let pie = d3.pie().value(function (d) { return d.value; });
+                let data_ready = pie(d3.entries(pie_data.data));
+                let pie_inner_radius = pie_radius - pie_radius * 25 / 100;
+
+                rect_coord = find_rect_xy_in_circle(pie_inner_radius, pie_inner_radius * 40 / 100, coords[0], coords[1]);
+
+                // Drawing pie lable
+                pie_svg.append("g")
+                    .append("foreignObject")
+                    .attr("x", rect_coord.x)
+                    .attr("y", rect_coord.y)
+                    .attr("width", rect_coord.width)
+                    .attr("height", rect_coord.height)
+                    .append("xhtml:div")
+                    .style("height", "100%")
+                    .style("margin", "auto")
+                    .style("font-size", "2.2vh")
+                    // .style("font-size", "0.8em")
+                    .style("text-align", "center")
+                    .style("display", "table")
+                    .append("p")
+                    .style("display", "table-cell")
+                    .style("vertical-align", "middle")
+                    .html(pie_data.country)
+                    .style("cursor", "pointer")
+                    .on('mouseover', function () {
+                        d3.select(this).transition()
+                            .duration(250)
+                            .attr('opacity', 0.75);
+
+                        tooltip_div.html(pie_data.country)
+                            .style("left", (d3.event.pageX + 10) + "px")
+                            .style("top", (d3.event.pageY - 15) + "px");
+
+                        //Makes the new div appear on hover:
+                        tooltip_div.transition()
+                            .duration(250)
+                            .style("opacity", 1);
+                    })
+                    .on('mouseout', function (i) {
+                        d3.select(this).transition()
+                            .duration(250)
+                            .attr('opacity', 1);
+
+                        //Makes the new div disappear:
+                        tooltip_div.transition()
+                            .duration(250)
+                            .style("opacity", 0);
+                    })
+
+                // Drawing pie circles
+                pie_svg
+                    .append('g')
+                    .attr("width", width)
+                    .attr("height", height)
+                    .attr("transform", "translate(" + coords[0] + "," + coords[1] + ")")
+                    .selectAll('.pie_piece')
+                    .data(data_ready)
+                    .enter()
+                    .append('path')
+                    .style("cursor", "pointer")
+                    .attr('d', d3.arc()
+                        .innerRadius(pie_inner_radius)
+                        .outerRadius(pie_radius)
+                    )
+                    .on('mouseover', function (d, i) {
+                        d3.select(this).transition()
+                            .duration(250)
+                            .attr('opacity', 0.75);
+
+                        tooltip_div.html(d.data.key + " - " + d.data.value)
+                            .style("left", (d3.event.pageX + 10) + "px")
+                            .style("top", (d3.event.pageY - 15) + "px");
+
+                        //Makes the new div appear on hover:
+                        tooltip_div.transition()
+                            .duration(250)
+                            .style("opacity", 1);
+                    })
+                    .on('mouseout', function (d, i) {
+                        d3.select(this).transition()
+                            .duration(250)
+                            .attr('opacity', 1);
+
+                        //Makes the new div disappear:
+                        tooltip_div.transition()
+                            .duration(250)
+                            .style("opacity", 0);
+                    })
+                    .attr('fill', function (d) { return pie_colors[d.data.key] })
+                    .attr("stroke", "black")
+                    .style("stroke-width", "1.5px")
+
+            })
+
+        })
+
+    }
+
+    function find_rect_xy_in_circle(radius, rect_height_from_center, coord_x, coord_y) {
+        // function to find coordinates and dimensions of rectangle of pie chart lable inside the pie circle. 
+        let rect_width_from_radius = (radius ** 2 - rect_height_from_center ** 2) ** (1 / 2);
+        let x1 = coord_x, y1 = coord_y - rect_height_from_center, y2 = y1;
+        let x2 = x1 - rect_width_from_radius + rect_width_from_radius * 2 * 5 / 100;
+        rect_width = rect_width_from_radius * 2 * 90 / 100
+        return { x: x2, y: y2, width: rect_width, height: rect_height_from_center * 2 }
+    }
+
+    draw_map_pie();
+
+    function destroy_map_svg() {
+        document.getElementById("svg_div").innerHTML = ""
+    }
+
+    window.onresize = function (event) {
+        destroy_map_svg();
+        draw_map_pie();
+    };
+
+
+
+
+</script>
